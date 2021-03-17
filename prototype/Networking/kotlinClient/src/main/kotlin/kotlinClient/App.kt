@@ -3,13 +3,30 @@
  */
 package kotlinClient
 
-class App {
-    val greeting: String
-        get() {
-            return "Hello world."
-        }
-}
+import java.net.*;
+import java.io.*;
+// import com.github.nkzawa.socketio.client.IO
+// import com.github.nkzawa.socketio.client.Socket
+// import java.net.URISyntaxException
+
+private const val IP         = "127.0.0.1"
+private const val PortNumber = 6969
+
+
 
 fun main(args: Array<String>) {
-    println(App().greeting)
+  // Connect
+  var socket : Socket = Socket(IP,PortNumber)
+  // Recive "HELLO"
+  var buf = ByteArray(1024, {_ : Int -> 0})
+  socket.getInputStream().read(buf)
+  var input = buf.toString(Charsets.UTF_8)
+  println("Recive $input")
+  // Sent "GOODBYE"
+  var message = "GOODBYE Γ".toByteArray().toString(Charsets.UTF_8)
+  socket.getOutputStream().write(message.toByteArray())
+  println("Sending $message")
+  // Close connecntion
+  socket.close()
+
 }

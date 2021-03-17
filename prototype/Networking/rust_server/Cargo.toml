@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
+rsa   = "0.3.0"
+rand  = { version = "0.7", features = ["default","getrandom"]}

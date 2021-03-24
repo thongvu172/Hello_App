@@ -17,10 +17,13 @@ private const val PortNumber = 6969
 fun main(args: Array<String>) {
   // Connect
   var socket : Socket = Socket(IP,PortNumber)
-  // Recive "HELLO"
   var buf = ByteArray(1024, {_ : Int -> 0})
+  // Recive public Key
   socket.getInputStream().read(buf)
   var input = buf.toString(Charsets.UTF_8)
+  println("$input")
+  // Recive "HELLO"
+  socket.getInputStream().read(buf)
   println("Recive $input")
   // Sent "GOODBYE"
   var message = "GOODBYE Γ".toByteArray().toString(Charsets.UTF_8)

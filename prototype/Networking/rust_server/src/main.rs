@@ -1,28 +1,28 @@
 use tokio::net::TcpListener;
 use std::str;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use rsa::{PublicKey, RSAPrivateKey, RSAPublicKey, PaddingScheme};
-use rand::rngs::*;
-
+use openssl::rsa::{Rsa, Padding};
+// use std::convert::TryInto;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     const SIZE : usize = 2048;
     // Cryptography setup
-    let mut rng = OsRng;
-    let private_key = RSAPrivateKey::new(&mut rng, SIZE).expect("failed to generate a key");
+    let rsa = Rsa::generate(2048).unwrap();
     //Networking Setup
     let listener = TcpListener::bind("0.0.0.0:6969").await?;
 
     loop {
         let (mut socket, _) = listener.accept().await?;
+        let rsa = rsa.clone();
 
         tokio::spawn(async move {
-            let mut buf = [0; SIZE];
+            let mut buf : [u8;SIZE] = [0; SIZE];
 
             // 1. @TODO Make connection encrypted
             // 1.1 send public key
-            socket.write(private_key.to_public_key()).await.ok()?
+            let public_key = rsa.public_key_to_pem().ok()?; //.try_into().ok()?;
+            socket.write(&public_key).await.ok()?;
             // 1.2 receive AES key
             // @TODO Send "Hello" through  encrypted tunnel  privet 
             socket.write("HELLO Γ".as_bytes()).await.ok()?;

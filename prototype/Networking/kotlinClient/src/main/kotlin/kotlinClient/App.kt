@@ -19,9 +19,10 @@ fun main(args: Array<String>) {
   var socket : Socket = Socket(IP,PortNumber)
   var buf = ByteArray(1024, {_ : Int -> 0})
   // Recive public Key
-  socket.getInputStream().read(buf)
-  var input = buf.toString(Charsets.UTF_8)
-  println("$input")
+  socket.getInputStream().read(buf);
+  var input = buf.toString(Charsets.UTF_8);
+  println("$input");
+  var publicKey =  2 ; 
   // Recive "HELLO"
   socket.getInputStream().read(buf)
   println("Recive $input")

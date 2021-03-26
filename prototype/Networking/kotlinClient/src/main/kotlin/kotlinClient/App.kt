@@ -22,7 +22,7 @@ fun main(args: Array<String>) {
   socket.getInputStream().read(buf)
   var input = buf.toString(Charsets.UTF_8)
   println("$input")
-  // Recive "HELLO"
+  // Recive "Howdy"
   socket.getInputStream().read(buf)
   println("Recive $input")
   // Sent "GOODBYE"

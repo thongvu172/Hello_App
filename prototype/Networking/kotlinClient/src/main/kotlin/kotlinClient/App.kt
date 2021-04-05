@@ -3,6 +3,9 @@
  */
 package kotlinClient
 
+import javax.crypto.Cipher;
+import java.util.Base64;
+import java.security.*;
 import java.net.*;
 import java.io.*;
 // import com.github.nkzawa.socketio.client.IO
@@ -12,25 +15,46 @@ import java.io.*;
 private const val IP         = "127.0.0.1"
 private const val PortNumber = 6969
 
+fun removePadding(key : String) : String {
+  var lines        : List<String> = key.split('\n')
+  var stripedLines : List<String> = lines.slice(1..(lines.size-3))
+  var mergedLines  : String       = stripedLines.fold("",{a,b -> a+b})
+  return mergedLines
+}
 
+fun getRSACipher(key : String) : ((String) -> ByteArray) {
+  var publicKey = KeyFactory.getInstance("RSA").generatePublic(
+                    java.security.spec.X509EncodedKeySpec(
+                      Base64.getDecoder().decode(
+                        removePadding(
+                          key))))
+  var cipher = Cipher.getInstance("RSA")
+  cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+  return {x : String -> cipher.doFinal(x.toByteArray(Charsets.UTF_8))}
+}
 
 fun main(args: Array<String>) {
   // Connect
   var socket : Socket = Socket(IP,PortNumber)
   var buf = ByteArray(1024, {_ : Int -> 0})
   // Recive public Key
-  socket.getInputStream().read(buf);
-  var input = buf.toString(Charsets.UTF_8);
-  println("$input");
-  var publicKey =  2 ; 
-  // Recive "HELLO"
   socket.getInputStream().read(buf)
-  println("Recive $input")
+  var input = buf.toString(Charsets.UTF_8)
+  println("$input")
+  var cypher = getRSACipher(input)
+  // Create AES Key
+  var aesKey = "lolol"
+  // Send AES Key
+  var message = cypher(aesKey).toString()
+  socket.getOutputStream().write(message.toByteArray())
+  println("Sending $message")
+  // Recive "HELLO"
+  // socket.getInputStream().read(buf)
+  // println("Recive $input")
   // Sent "GOODBYE"
-  var message = "GOODBYE Γ".toByteArray().toString(Charsets.UTF_8)
+  message = cypher("GOODBYE Γ").toString()
   socket.getOutputStream().write(message.toByteArray())
   println("Sending $message")
   // Close connecntion
   socket.close()
-
 }

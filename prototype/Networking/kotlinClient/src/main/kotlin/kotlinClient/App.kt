@@ -3,58 +3,42 @@
  */
 package kotlinClient
 
-import javax.crypto.Cipher;
-import java.util.Base64;
-import java.security.*;
-import java.net.*;
-import java.io.*;
+import javax.net.ssl.*;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.SSLSocket.*;
+// import java.net.*;
 // import com.github.nkzawa.socketio.client.IO
 // import com.github.nkzawa.socketio.client.Socket
 // import java.net.URISyntaxException
 
-private const val IP         = "127.0.0.1"
-private const val PortNumber = 6969
 
-fun removePadding(key : String) : String {
-  var lines        : List<String> = key.split('\n')
-  var stripedLines : List<String> = lines.slice(1..(lines.size-3))
-  var mergedLines  : String       = stripedLines.fold("",{a,b -> a+b})
-  return mergedLines
+public fun <T> trace(a : T) : T {
+  println(a.toString())
+  return a
 }
 
-fun getRSACipher(key : String) : ((String) -> ByteArray) {
-  var publicKey = KeyFactory.getInstance("RSA").generatePublic(
-                    java.security.spec.X509EncodedKeySpec(
-                      Base64.getDecoder().decode(
-                        removePadding(
-                          key))))
-  var cipher = Cipher.getInstance("RSA")
-  cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-  return {x : String -> cipher.doFinal(x.toByteArray(Charsets.UTF_8))}
-}
+
+private const val IP : String = "localhost"
+private const val PortNumber : Int = 6969
+
 
 fun main(args: Array<String>) {
-  // Connect
-  var socket : Socket = Socket(IP,PortNumber)
-  var buf = ByteArray(1024, {_ : Int -> 0})
-  // Recive public Key
-  socket.getInputStream().read(buf)
-  var input = buf.toString(Charsets.UTF_8)
-  println("$input")
-  var cypher = getRSACipher(input)
-  // Create AES Key
-  var aesKey = "lolol"
-  // Send AES Key
-  var message = cypher(aesKey).toString()
-  socket.getOutputStream().write(message.toByteArray())
-  println("Sending $message")
-  // Recive "HELLO"
-  // socket.getInputStream().read(buf)
-  // println("Recive $input")
-  // Sent "GOODBYE"
-  message = cypher("GOODBYE Γ").toString()
-  socket.getOutputStream().write(message.toByteArray())
-  println("Sending $message")
-  // Close connecntion
-  socket.close()
+  var message = args.joinToString();
+  var factory : SSLSocketFactory = 
+      SSLSocketFactory.getDefault() as SSLSocketFactory;
+  var socket  : SSLSocket = 
+      factory.createSocket(IP , PortNumber) as SSLSocket;
+  try {
+    socket.startHandshake();
+    println("Sending: $message");
+    socket.getOutputStream().write(message.toByteArray());
+    var buf : ByteArray = ByteArray(2048, {_ : Int -> 0})
+    socket.getInputStream().read(buf);
+    message = String(buf,Charsets.UTF_8);
+    println("Received: $message");
+    socket.close();
+  } catch (e : SSLHandshakeException) {
+    val help = "try running \"keytool -import -file ../rust_server/ssl/cert.pem -alias helloAppPrototype -keystore \$JAVA_HOME/lib/security/cacerts\" password is probably 'changeit'"
+    println("could not find certification for server\n$help\n$e\nExiting")
+  }
 }

@@ -1,65 +1,80 @@
-use tokio::net::TcpListener;
-use std::str;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use openssl::rsa::{Rsa, Padding};
-// use std::convert::TryInto;
+// mod Lib;
 
-const SIZE : usize = 2048;
-const CLEARBUFF : [u8;SIZE] = [0;SIZE];
+use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio_native_tls::{TlsAcceptor, TlsStream};
+use tokio_native_tls::native_tls; 
+use std::str;
+use std::io::*;
+use std::fs::File;
+
+
+const BUFFSIZE  : usize = 2048;
+const CLEARBUFF : [u8;BUFFSIZE] = [0;BUFFSIZE];
+ 
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Cryptography setup
-    let rsa = Rsa::generate(2048).unwrap();
-    //Networking Setup
+async fn main() -> Result<()/*, Box<dyn std::error::Error>*/> {
+    // Get Crypto info
+    // files from command "openssl pkcs12 -export -out identity.pfx -inkey key.pem -in cert.pem
+    // -certfile chain_certs.pem"
+    let (der,pass) = 
+        match get_ssl_info() {
+            Some(x) => x,
+            None    => 
+            {
+                eprintln!("Failed to get Crypto info. Exiting");
+                std::process::exit(1);
+            }
+        };
+    let identity = native_tls::Identity::from_pkcs12(&der, &pass).unwrap();
+    let accepter : TlsAcceptor = 
+        TlsAcceptor::from(
+            native_tls::TlsAcceptor::new(identity).unwrap());
+    // Networking Setup
     let listener = TcpListener::bind("0.0.0.0:6969").await?;
-    println!("{}\n\n{}\n\n{}"
-        , str::from_utf8(&rsa.public_key_to_pem().unwrap()).unwrap()
-        , str::from_utf8(&rsa.public_key_to_der().unwrap()).unwrap()
-        , str::from_utf8(&rsa.public_key_to_pem_pkcs1().unwrap()).unwrap());
-
     loop {
         let (mut socket, _) = listener.accept().await?;
-        let rsa = rsa.clone();
-
+        let accepter        = accepter.clone();
         tokio::spawn(async move {
-            let mut buf : [u8;SIZE] = CLEARBUFF;
-
-            // 1. @TODO Make connection encrypted
-            // 1.1 send public key
-            let public_key = rsa.public_key_to_pem().ok()?; //.try_into().ok()?;
-            socket.write(&public_key).await.ok()?;
-            let decrypt = 
-                |x : &[u8] | -> String 
-                    { let mut message = CLEARBUFF;
-                      rsa.private_decrypt
-                          ( x
-                          , &mut message
-                          , Padding::NONE).unwrap();
-                    return String::from(
-                        str::from_utf8(&message).unwrap());};
-            // 1.2 receive AES key
-            for _ in 0..2 {
-                buf = CLEARBUFF;
-                socket.read(&mut buf).await.ok()?;
-                let message = String::from(
-                    str::from_utf8(&buf).unwrap());
-                println!("{}\n\n",decrypt(&buf));
-            }
-
-            // @TODO Send "Hello" through  encrypted tunnel  privet 
-            socket.write("HELLO Γ".as_bytes()).await.ok()?;
-            // @TODO Receive "GOODBYE" through encrypted tunnel
-            socket.read(&mut buf).await.ok()?;
-            let message : String = String::from(str::from_utf8(&buf).ok()?);
-            if message == "GOODBYE Γ" {
-                println!("Successful Conversation");
-            }
-            else {
-                println!("Unsuccessful Conversation; got({})",message);
-            }
-            // @TODO Close Connection (when socket leaves scope)
-            Some(()) 
+            let mut socket : TlsStream<&mut TcpStream> = accepter.accept(&mut socket).await.ok()?;
+            // echo server
+            println!("start");
+            loop {
+                let mut buf = CLEARBUFF;
+                // get message
+                match socket.read(&mut buf).await {
+                    Ok(0)  => break,
+                    Err(_) => break,
+                    Ok(_)  => ()
+                };
+                let message : String = 
+                    String::from(
+                        str::from_utf8(
+                            &buf).ok()?);
+                println!("Received:{}",message);
+                socket.write(&buf).await.ok()?;
+            };
+            println!("end");
+            Some(())
         });
     }
+}
+
+
+fn get_ssl_info() -> Option<(Vec<u8>,String)> {
+    const derName : &str = "ssl/identity.pfx";
+    const passName : &str = "ssl/pass";
+    let mut buf = Vec::new();
+    // get der
+    let mut reader = File::open(derName).ok()?;
+    reader.read_to_end(&mut buf).ok()?;
+    let der = buf.clone();
+    buf = Vec::new();
+    // get pass
+    reader = File::open(passName).ok()?;
+    reader.read_to_end(&mut buf).ok()?;
+    let pass = str::from_utf8(&buf).ok()?;
+    // end
+    Some((der,pass.trim().to_string()))
 }

@@ -18,6 +18,7 @@ repositories {
     jcenter()
 }
 
+
 dependencies {
     // Align versions of all Kotlin components
     implementation platform('org.jetbrains.kotlin:kotlin-bom')
@@ -32,8 +33,20 @@ dependencies {
     testImplementation 'org.jetbrains.kotlin:kotlin-test-junit'
 
     // Socket.IO
-    implementation  'com.github.nkzawa:socket.io-client:0.6.0'
+    // implementation  'com.github.nkzawa:socket.io-client:0.6.0'
 }
+
+jar {
+  manifest {
+   attributes 'Main-Class': 'kotlinClient.AppKt'
+  }
+  from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+  /* from { 
+         configurations.compile.collect { 
+             it.isDirectory() ? it : zipTree(it) 
+         } 
+    } */
+} 
 
 application {
     // Define the main class for the application.

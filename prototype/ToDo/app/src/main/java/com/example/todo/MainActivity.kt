@@ -1,5 +1,5 @@
-jkkj
-kpackage com.example.todo
+import com.example.todo.R
+
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
